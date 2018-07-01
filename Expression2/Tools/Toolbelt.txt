@@ -1,0 +1,199 @@
+@name Toolbelt
+@inputs 
+@outputs 
+@persist [Settings]:table
+@trigger 
+
+if(dupefinished()){reset()}
+if(first())
+{
+    #include "libraries/event_system/event_core"
+    #include "libraries/holo/holo_core"
+    #include "libraries/input/input_core"
+    #include "libraries/sound/sound_core"
+    #include "Tools/Toolbelt/libraries/utils"
+    
+    # Set owner/user of toolbelt here;
+    # Modules should respect this by using toolbeltGetOwner() instead of owner()
+    Owner = owner()# you could also use findPlayerByName("Playername") to attach it to a specific player...
+    
+    Settings = table(
+        "player" = table(
+            "owner" = Owner,
+            "pos" = vec(0, 0, Owner:height()/2)
+        ),
+        "toolbelt" = table(
+            "ang" = ang(0, 0, 90), # Fixed angle in world, don't change.
+            "modules" = table(), # Table used for storing internal module stuff like registered modules, position on belt, input monitoring, etc.
+            "spawntime" = curtime()
+        )
+    )
+    
+    holoSpawnerAdd(1000, table( # Toolbelt parent
+            "lpos" = table(vec(), entity()),
+            "model" = "models/sprops/misc/tubes_thin/size_4/t_tube_48x6.mdl",
+            "scale" = vec(1, 0.5, 1),
+            "material" = "models/wireframe",
+            #"material" = "models/debug/debugwhite",
+            #"alpha" = 128,
+            "disableshading" = 1,
+            "color" = vec(255, 128, 0)
+        )
+    )
+    # Here we include the modules we like.
+    #include "Tools/Toolbelt/modules/buildmode/buildmode"
+    #include "Tools/Toolbelt/modules/spawnit/spawnit"
+    #include "Tools/Toolbelt/modules/spropsselector/spropsselector"
+    #include "Tools/Toolbelt/modules/fadingdoor/fadingdoor"
+    #include "Tools/Toolbelt/modules/localfinder/localfinder"
+    # When developing modules for the toolbelt, write their code below here!
+    
+    
+    # Left to do:
+    # Fix so that when deactivating, colors, materials, etc. are restored!
+    # Also make sure that repeatitive 'hides' are restored properly.
+    function findChildren(Target:entity, ModuleSettings:table)
+    {
+        findInSphere(Target:pos(), 500)
+        findClipToClass("prop_physics")
+        ModuleSettings["ents", array] = findToArray()
+    }
+    function parentToolUpdate(ModuleSettings:table)
+    {
+        local Ents = ModuleSettings["ents", array]
+        if(ModuleSettings["currentent", number] > Ents:count()) { return }
+        
+        local HiddenTable = ModuleSettings["hidden", table]
+        
+        for(I=ModuleSettings["currentent", number], ModuleSettings["currentent", number]+5)
+        {
+            local Ent = Ents[I, entity]
+            local Parent = Ent:parent()
+            #print(I, ModuleSettings["currentent", number])
+            if(Parent:isValid() & Parent == ModuleSettings["targetparent", entity])
+            {
+                HiddenTable[Ent:id():toString(), table] = table(
+                    "ent" = Ent,
+                    "color" = Ent:getColor4(),
+                    "material" = Ent:getMaterial()
+                )
+                switch(ModuleSettings["currentmode", number])
+                {
+                    case 1, # Completely hide by setting alpha to 0 and using propNotSolid.
+                        Ent:setAlpha(0)
+                        Ent:propNotSolid(1)
+                        break
+                    case 2, # Reset colors and materials to default with 128 alpha.
+                        Ent:setColor(vec4(255,255,255,128))
+                        Ent:setMaterial("")
+                        break
+                    case 3, # Set color and material to defind ones. Note: should make this use concmds for ease of use...
+                        Ent:setColor(ModuleSettings["color", vector])
+                        Ent:setMaterial(ModuleSettings["material", string])
+                        break
+                    default,
+                        break
+                }
+            }
+            ModuleSettings["currentent", number] = I+1
+            if(ModuleSettings["currentent", number] > Ents:count()) { print(format("Done! %i children hidden.", HiddenTable:count())), ModuleSettings["running", number] = 0, break }
+        }
+    }
+    function parentToolInput(Ply:entity, Key:string, State:number, ModuleSettings:table)
+    {
+        local Owner = toolbeltGetOwner()
+        if(ModuleSettings["running", number]) { return } # We're busy right now!
+        if(!Owner:keyPressed("lshift")) { return } # Only do stuff when lshift is pressed!
+        
+        switch(Key) # Handle mode changes
+        {
+            case "1", # Completely hide by setting alpha to 0 and using propNotSolid.
+                if(State & ModuleSettings["currentmode", number] != 1)
+                {
+                    print("Parent Tool Mode: Hide all children props (hides all parented props that are in any way associated with target prop)")
+                    ModuleSettings["currentmode", number] = 1
+                }
+                break
+            case "2", # Reset colors and materials to default with 128 alpha.
+                if(State & ModuleSettings["currentmode", number] != 2)
+                {
+                    print("Parent Tool Mode: Reset colors and materials with transparency.")
+                    ModuleSettings["currentmode", number] = 2
+                }
+                break
+            case "3", # Set material and color
+                if(State & ModuleSettings["currentmode", number] != 3)
+                {
+                    print("Parent Tool Mode: Set color and material to defined ones.")
+                    ModuleSettings["currentmode", number] = 3
+                }
+            default,
+                break
+        }
+        
+        switch(Key)
+        {
+            case "mouse_right",
+                if(State)
+                {
+                    local Ent = Owner:aimEntity()
+                    if(!(Ent:isValid() & Ent:parent():isValid())) { return }
+                    ModuleSettings["targetparent", entity] = Ent:parent()
+                    ModuleSettings["currentent", number] = 1
+                    ModuleSettings["running", number] = 1
+                    if(!ModuleSettings:exists("hidden")) { ModuleSettings["hidden", table] = table() }
+                    if(ModuleSettings["targetparent", entity]:isValid())
+                    {
+                        print(format("Hiding children of parent %s", ModuleSettings["targetparent", entity]))
+                        findChildren(Ent, ModuleSettings)
+                    }else { print("Entity doesn't have a parent") }
+                }
+                break
+            case "e",
+                if(State)
+                {
+                    local AimEnt = Owner:aimEntity()
+                    ModuleSettings["color", vector] = AimEnt:getColor()
+                    ModuleSettings["material", string] = AimEnt:getMaterial()
+                    print(format("Copied color %s and material %s", ModuleSettings["color", vector]:toString(), ModuleSettings["material", string]))
+                }
+                break
+            default,
+                break
+        }
+    }
+    function table parentToolActivation(State, ModuleSettings:table)
+    {
+        if(State)
+        {
+            #printTable(ModuleSettings)
+            ModuleSettings["currentmode", number] = 1
+            ModuleSettings["currentent", number] = 1
+            ModuleSettings["targetparent", entity] = noentity()
+            ModuleSettings["currentent", number] = 1
+            ModuleSettings["running", number] = 0
+            ModuleSettings["hidden", table] = table()
+            if(!ModuleSettings:exists("material"))
+            {
+                ModuleSettings["color", vector] = vec(255)
+                ModuleSettings["material", string] = ""
+            }
+        }else{ # Deactivation, return all props to former state.
+            local HiddenTable = ModuleSettings["hidden", table]
+            foreach(EntIndex, EntTab:table = HiddenTable)
+            {
+                local Ent = EntTab["ent", entity]
+                Ent:setColor(EntTab["color", vector4])
+                Ent:setMaterial(EntTab["material", string])
+                Ent:propNotSolid(0)
+            }
+            print(format("Restored %i children", HiddenTable:count()))
+            HiddenTable:clear()
+            ModuleSettings["ents", array] = array()
+        }
+        return ModuleSettings
+    }
+    toolbeltAddModule(array("ParentTool", "PRT"), "parentToolUpdate", "parentToolInput", "parentToolActivation")
+    # Don't touch the shit below here, the toolbelt won't work if you do!
+    #include "Tools/Toolbelt/libraries/toolbelt_core"
+}, #include "libraries/event_system/event_polling"

@@ -1,0 +1,201 @@
+# Buildmode functions
+function buildmodeInput(Ply:entity, Key:string, State, ModuleSettings:table)
+{
+    local Owner = Settings["player", table]["owner", entity]
+    if(Owner:weapon():type() != "weapon_physgun") { return }
+    local AimEnt = Owner:aimEntity()
+    local LAlt = Owner:keyPressed("lalt")
+    local LShift = Owner:keyPressed("lshift")
+    
+    #print(format("[BM] In input func: Ply: %s, Key: %s, State: %i", toString(Ply), Key, State))
+    if(Key == "lalt")
+    {
+        if(State)
+        {
+			if(AimEnt:isValid())
+			{
+				holoColor(1, vec(50,128,255))
+				holoPos(3, AimEnt:pos())
+				holoParent(3, AimEnt)
+				holoAlpha(3, 128)
+				ModuleSettings["locked", entity] = AimEnt
+			}
+        }else{
+			holoColor(1, vec(255))
+			holoUnparent(2)
+			holoAlpha(2, 0)
+			holoUnparent(3)
+			holoAlpha(3, 0)
+        
+			ModuleSettings["locked", entity] = noentity()
+			ModuleSettings["quickflip",table]["flipstate", number] = 1
+        }
+    }elseif(Key == "lshift" & ModuleSettings["locked", entity]:isValid())
+    {
+        if(State)
+        {
+			local Scale = array(vec(1,ModuleSettings["locked", entity]:boxMax():y()*2.3,1), vec(1,1,ModuleSettings["locked", entity]:boxMax():z()*2.3), vec(ModuleSettings["locked", entity]:boxMax():x()*2.3, 1, 1))
+			local FlipAng = ModuleSettings["quickflip", table]["localflip", table]["localflipstate", number]
+			holoPos(2, ModuleSettings["locked", entity]:boxCenterW())
+			holoParent(2, ModuleSettings["locked", entity])
+			holoScaleUnits(2, Scale[ModuleSettings["quickflip", table]["localflip", table]["localflipstate", number], vector])
+			holoAng(2, ModuleSettings["locked", entity]:angles())
+			holoAlpha(2, 128)
+		}else{
+			holoAlpha(2, 0)
+			holoUnparent(2)
+        }
+    }elseif(ModuleSettings["locked",entity]:isValid() & Key == "e" & State & LAlt)
+    {
+        ModuleSettings["locked",entity]:propFreeze(1)
+        if(!LShift) # Regular rotation between the pre-defined angles.
+        {
+			ModuleSettings["locked",entity]:setAng(ModuleSettings["quickflip",table]["angles",table][ModuleSettings["quickflip",table]["flipstate", number], angle])
+			hint(format("Snapped to %s", toString(ModuleSettings["quickflip", table]["angles", table][ModuleSettings["quickflip", table]["flipstate", number], angle])), 5)
+			
+			ModuleSettings["quickflip",table]["flipstate", number] = ModuleSettings["quickflip",table]["flipstate", number]+1
+			if(ModuleSettings["quickflip",table]["flipstate", number] > ModuleSettings["quickflip",table]["angles", table]:ncount()) { ModuleSettings["quickflip",table]["flipstate", number] = 1 }
+        }else{
+			#local RotationAxis = ModuleSettings["quickflip", table][
+			local FlipAng = select(ModuleSettings["quickflip", table]["localflip", table]["localflipstate", number], ang(1,0,0), ang(0,1,0),ang(0,0,1))
+			ModuleSettings["locked",entity]:setAng(ModuleSettings["locked",entity]:toWorld(FlipAng*ModuleSettings["quickflip", table]["localflip", table]["amount", number]))
+        }
+    }elseif(ModuleSettings["locked",entity]:isValid() & Key == "g" & State & LShift)
+    {
+        ModuleSettings["quickflip", table]["localflip", table]["localflipstate", number] = (ModuleSettings["quickflip", table]["localflip", table]["localflipstate", number]+1 > 3 ? 1 : ModuleSettings["quickflip", table]["localflip", table]["localflipstate", number]+1)
+        
+        local StrRot = array("Pitch", "Yaw", "Roll")
+        local Scale = array(vec(1,ModuleSettings["locked",entity]:boxMax():y()*2.3,1), vec(1,1,ModuleSettings["locked",entity]:boxMax():z()*2.3), vec(ModuleSettings["locked",entity]:boxMax():x()*2.3, 1, 1))
+        holoScaleUnits(2, Scale[ModuleSettings["quickflip", table]["localflip", table]["localflipstate", number], vector])
+        
+        hint(format("Rotation axis: %s", StrRot[ModuleSettings["quickflip", table]["localflip", table]["localflipstate", number], string]), 5)
+    }elseif(Key == "mouse_left" & LAlt)
+    {
+        if(State & AimEnt:isValid())
+        {
+			AimEnt:propNotSolid(1)
+			AimEnt:propGravity(0)
+			ModuleSettings["locked",entity] = AimEnt
+        }else{
+			ModuleSettings["locked",entity]:propGravity(1)
+			ModuleSettings["locked",entity]:propNotSolid(0)
+			ModuleSettings["locked",entity]:propFreeze(1)
+			
+			local Angles = ModuleSettings["locked",entity]:angles()
+			local P = Angles:pitch(), Y = Angles:yaw(), R = Angles:roll()
+			P = round(P/ModuleSettings["snap", table]["min", number])*ModuleSettings["snap", table]["min", number]
+			Y = round(Y/ModuleSettings["snap", table]["min", number])*ModuleSettings["snap", table]["min", number]
+			R = round(R/ModuleSettings["snap", table]["min", number])*ModuleSettings["snap", table]["min", number]
+			
+			ModuleSettings["locked",entity]:setAng(ang(P, Y, R))
+			ModuleSettings["locked",entity] = noentity()
+        }
+    }elseif(Key == "mouse_right")
+    {
+        if(LAlt)
+        {
+			if(State)
+			{
+				local HitPos = AimEnt:nearestPoint(Owner:aimPos())
+				ModuleSettings["edata", table] = table(
+					"dist" = Owner:shootPos():distance(HitPos),
+					"offset" = AimEnt:pos()-HitPos
+				)
+				AimEnt:propFreeze(1)
+				ModuleSettings["locked",entity] = AimEnt
+				eventSetInterval("toolbeltUpdateModules", 25) # Write a wrapper around this to allow modules to ajust the update interval! <---------
+			}else{
+				ModuleSettings["locked",entity] = noentity()
+				eventSetInterval("toolbeltUpdateModules", 200) # The modules themselves shouldn't need to reset the global update interval, this should be handled by auto when the module deactivates.
+			}
+        }else{eventSetInterval("toolbeltUpdateModules", 200) } # The modules themselves shouldn't need to reset the global update interval, this should be handled by auto when the module deactivates.
+    }
+}
+function buildmodeUpdate(ModuleSettings:table)
+{
+    local Owner = Settings["player", table]["owner", entity]
+    if(Owner:weapon():type() == "weapon_physgun")
+    {
+        local AimEnt = (ModuleSettings["locked", entity]:isValid() ? ModuleSettings["locked", entity] : Owner:aimEntity())
+        if(AimEnt:isValid())
+        {
+			holoModel(1, AimEnt:model())
+			holoScaleUnits(1, AimEnt:boxSize()*1.01)
+			holoPos(1, AimEnt:pos())
+			holoAng(1, AimEnt:angles())
+			holoParent(1, AimEnt)
+			holoAlpha(1, 128)
+			
+			if(Owner:keyPressed("mouse_right") & Owner:keyPressed("lalt") & ModuleSettings["locked",entity]:isValid())
+			{
+				local ProjectedPos = Owner:shootPos() + ModuleSettings["edata", table]["dist", number]*Owner:eye()
+				ModuleSettings["locked", entity]:setPos(ProjectedPos + ModuleSettings["edata", table]["offset", vector])
+			}
+		}else{
+			holoColor(1, vec(255))
+			for(I=1,3)
+			{
+				holoUnparent(I)
+				holoAlpha(I, 0)
+			}
+        }
+    }else{
+        holoColor(1, vec(255))
+        for(I=1,3)
+        {
+			holoUnparent(I)
+			holoAlpha(I, 0)
+        }
+    }
+}
+
+function table buildmodeActivation(ActiveState, ModuleSettings:table) # Activation function, must return the settings table passed to it.
+{
+    if(ActiveState)
+    {
+        ModuleSettings = table(
+			"snap" = table( # Automaticly snap to closest angle specified below.
+				"min" = 45
+			),
+			"autofreeze" = table( # Auto freeze when you let go of an entity with physgun.
+			),
+			"autonocollide" = table( # Automatically nocollides the prop with everything(including the world) while you're holding it with physgun.
+			),
+			"movement" = table( # Uses LAlt+Mouse2 to move without rotation, let go of any of the keys to stop moving.
+			),
+			"quickflip" = table( # Uses LAlt+E to quickly flip through +-90 aligned angles on all axles, and LAlt+Shift+E to flip using local angles.
+				"angles" = table( # Define the angles you want to be able to flip through.
+				ang(0,0,0),
+				ang(90,0,0),#ang(-90,0,0),
+				ang(0,90,0),#ang(0,-90,0),
+				ang(0,0,90),#ang(0,0,-90),
+				ang(180,0,0),#ang(-180,0,0),
+				ang(0,180,0),#ang(0,-180,0),
+				ang(0,0,180)#,ang(0,0,-180),
+				),
+				"flipstate" = 1, # Used to count the next angle to flip to, don't change from 1.,
+				"localflip" = table(
+				"amount" = 22.5, # Amount in degrees to rotate on each LAlt+Shift+E keypress.
+				"localflipstate" = 1 # Same as above, but used for local flip. Toggle between P/Y/R with LAlt+Shift+G
+				)
+			)
+        )
+        for(I=1,3) # Create the highlight holo, and the axis visual indicator.
+        {
+			holoCreate(I)
+			holoMaterial(I, "models/wireframe")
+			holoDisableShading(I, 1)
+			holoAlpha(I, 0)
+        }
+        holoModel(3, "hq_sphere")
+        holoColor(3, vec(255, 128, 0))
+    }else{
+        for(I=1,3) # Cleanup holograms.
+        {
+			holoDelete(I) # Highlight holo
+        }
+        ModuleSettings:clear()
+    } # Wipe the settings table clean so on next activation we're completely reset.
+    return ModuleSettings
+}
+toolbeltAddModule(array("BuildMode", "BMO"), "buildmodeUpdate", "buildmodeInput", "buildmodeActivation")

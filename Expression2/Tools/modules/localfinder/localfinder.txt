@@ -1,0 +1,41 @@
+function localfinderUpdate(ModuleSettings:table)
+{
+    local Owner = Settings["player", table]["owner", entity]
+    local AimEnt = Owner:aimEntity()
+    
+    if(AimEnt:isValid())
+    {
+        holoPos(1, Owner:aimPos())
+    }
+    }
+    function localfinderInput(Ply:entity, Key:string, State, ModuleSettings:table)
+    {
+    local AimEnt = Ply:aimEntity()
+    if(Ply:keyPressed("lalt") & Key == "mouse_right" & State & AimEnt:isValid()) # Set base to find local pos/angle to.
+    {
+        if(ModuleSettings["base", table][1, entity]:isValid()) { ModuleSettings["base", table][1, entity]:setColor(ModuleSettings["base", table][2, vector]) }
+        ModuleSettings["base", table] = table(AimEnt, AimEnt:getColor())
+        AimEnt:setColor(vec(128, 128, 255))
+    }elseif(Ply:keyPressed("lalt") & Key == "f" & State)
+    {
+        local Base = ModuleSettings["base", table][1, entity]
+        local AimPos = Ply:aimPos()
+        print(format("%s:toLocal(AimPos): vec(%s)\n%s:toLocal(AimEnt:angles()): ang(%s)", toString(Base), toString(Base:toLocal(AimPos)), toString(Base), toString(Base:toLocal(Ply:aimEntity():angles()))))
+    }
+}
+function table localfinderActivator(State, ModuleSettings:table)
+{
+    if(State)
+    {
+        holoCreate(1) # Used for visualizing the aimpoint on an entity
+        holoModel(1, "hq_sphere")
+        holoColor(1, vec4(255, 128, 0, 128))
+        holoScale(1, vec(0.05))
+    }else{
+        
+        if(ModuleSettings["base", table][1, entity]:isValid()) { ModuleSettings["base", table][1, entity]:setColor(ModuleSettings["base", table][2, vector]) }
+        ModuleSettings["base", table] = table()
+    }
+    return ModuleSettings
+}
+toolbeltAddModule(array("Local finder", "LoF"), "localfinderUpdate", "localfinderInput", "localfinderActivator")

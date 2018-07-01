@@ -1,0 +1,63 @@
+@name Buildmode logo for Toolbelt
+
+# Buildmode module logo for Toolbelt.
+# You may use this as reference for designing new modules!
+# The library system itself can be found on my github link: https://github.com/FreeeFry/E2-LibrarySystem
+if(first())
+{
+    #include "libraries/event_system/event_core"
+    #include "libraries/holo/holo_core"
+    
+    Self = entity() # Provided for ease of use.
+    Owner = owner() # Provided for ease of use.
+    
+    # This is the parent, don't change this at all, it's here to give you a reference of what your holograms will be parented to(exact size, etc.).
+    # The side facing you is the one you want to orient your hologram towards!
+    Parent = holoCreate(1000, Self:toWorld(vec(0, 0, 10)))
+    holoScale(1000, vec(0.25))
+    holoAng(1000, (Owner:shootPos()-Parent:pos()):normalized():toAngle())
+    holoAlpha(1000, 128)
+    holoParent(1000, Self)
+    
+    # Create your holograms here, using the holoSpawnerAdd function, provided by yours truly.
+    # Be sure to use holograms in order, ie. index 1,2,3,4,5, etc.
+    # Supported properties can be found here: https://github.com/FreeeFry/E2-LibrarySystem/blob/master/Expression2/libraries/holo/holo_core.txt#L65
+    holoSpawnerAdd(1, table(
+        "model" = "models/sprops/misc/alphanum/alphanum_b.mdl",
+        "posl" = table(vec(1.5,-0.5,0), Parent),
+        "angl" = table(ang(0, -90, 0), Parent),
+        "color" = vec(255,128,0),
+        "material" = "models/debug/debugwhite",
+        "scale" = vec(0.1),
+        "parent" = Parent
+    ))
+    holoSpawnerAdd(2, table(
+        "model" = "models/sprops/misc/alphanum/alphanum_m.mdl",
+        "posl" = table(vec(1.5,0.5,0), Parent),
+        "angl" = table(ang(0, -90, 0), Parent),
+        "color" = vec(255,128,0),
+        "material" = "models/debug/debugwhite",
+        "scale" = vec(0.1),
+        "parent" = Parent
+    ))
+    
+    # Filename to save as in data/e2files/Toolbelt/modules, don't forget the .txt extension!
+    ModuleFileName = "buildmode_logo.txt"
+    # Total number of holograms your logo contains ( not counting the 1000 hologram! ).
+    NumHolos = 2 
+    
+    function holoSpawned(ID, Ent:entity, Remaining) # Customization of holograms done here will not be saved (impossible), so don't do it.
+    {
+        holoDisableShading(ID, 1)
+        if(!Remaining) # All user holograms spawned, time to save them ( do note this saves their current state, not how they where initially created! )
+        {
+            # Save it
+            local HoloIDs = table()
+            for(I=1, NumHolos) { HoloIDs[I, number] = I }
+            holoSpawnerHoloSave(format("toolbelt/modules/%s", ModuleFileName), Parent, HoloIDs)
+            unregisterEvent("event_holoSpawn")
+            exit()
+        }
+    }, registerEvent("event_holoSpawn", 50, "holoSpawned")
+    
+}, #include "libraries/event_system/event_polling"

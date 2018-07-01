@@ -1,0 +1,42 @@
+function spawnitUpdate(ModuleSettings:table)
+{
+    
+}
+function spawnitInput(Ply:entity, Key:string, State, ModuleSettings:table)
+{
+    local AimEnt = (Ply:aimEntity():type() == "prop_physics" ? Ply:aimEntity() : noentity())
+    
+    if(Key == "e" & State)
+    {
+        if(Ply:keyPressed("lshift") & ModuleSettings["model", string] != "" & propCanCreate())
+        {
+        rangerFilter(Ply)
+        local Trace = rangerOffset(250, Ply:shootPos(), Ply:eye())
+        if(Trace:hit())
+        {
+            local SpawnPos = Trace:pos()
+            local SpawnAng = ang(0, Ply:eyeAngles():yaw() + 180, 0)
+            local Ent = propSpawn(ModuleSettings["model", string], SpawnPos, SpawnAng, 1)
+            local FlushPoint = Trace:pos() - Trace:hitNormal()*512
+            FlushPoint = Ent:nearestPoint(FlushPoint)
+            FlushPoint = Ent:pos() - FlushPoint
+            FlushPoint = Trace:pos() + FlushPoint
+            Ent:setPos(FlushPoint)
+        }
+        }elseif(AimEnt:isValid() & !Ply:keyPressed("lshift"))
+        {
+        ModuleSettings["model", string] = AimEnt:model()
+        print(format("Stored model %s", ModuleSettings["model", string]))
+        }
+    }
+}
+function table spawnitActivation(State, ModuleSettings:table)
+{
+    if(!State)
+    {
+        #ModuleSettings["
+    }else{
+    }
+    return ModuleSettings
+}
+toolbeltAddModule(array("SpawnIt", "SPI"), "spawnitUpdate", "spawnitInput", "spawnitActivation")

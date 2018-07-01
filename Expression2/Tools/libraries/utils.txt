@@ -1,0 +1,38 @@
+function number toolbeltAddModule(ModuleName:array, UpdateCallback:string, InputCallback:string, ActivationCallback:string)
+{
+	if(!Settings["toolbelt", table]["modules", table]:exists(ModuleName[1, string])) # Otherwise it's already registered, someone made a bobo.
+	{
+		local ModuleTable = table(
+		"name" = ModuleName[1, string],
+		"abbreviation" = ModuleName[2, string]:sub(1,3), # Used for hologram creation, max 3 characters will be printed.
+		"onUpdate" = UpdateCallback,
+		"onInput" = InputCallback,
+		"onActivation" = ActivationCallback,
+		"active" = 0, # All modules start disabled, they're activated by looking at them and pressing the use key (E).
+		"quedReg" = 1 # We'll need to queue the registration until the toolbelt is setup, 1 means it hasn't been processed yet by setupToolbelt.
+		)
+		Settings["toolbelt", table]["modules", table][ModuleName[1, string], table] = ModuleTable
+		return 1
+	}
+  return 0
+}
+
+function number entity:isLookingAt(Position:vector)
+{
+    local From = This:shootPos()
+	return (((From + This:eye()*From:distance(Position))-Position):length() < 2 ? 1 : 0)
+}
+
+function array string:stringToModel()
+{
+	local ReturnArray = array()
+    for(I=1,This:length())
+	{
+		ReturnArray[I, string] = format("models/sprops/misc/alphanum/alphanum_%s.mdl", This:sub(I):left(1):lower())
+	}
+    return ReturnArray
+}
+function entity toolbeltGetOwner()
+{
+  return Settings["player", table]["owner", entity]
+}

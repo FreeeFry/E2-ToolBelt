@@ -1,0 +1,78 @@
+function void fadingdoorReset(ModuleSettings:table)
+{
+    for(I=1, ModuleSettings["ents", array]:count())
+    {
+        local Ent = ModuleSettings["ents", array][I, entity]
+        if(Ent:isValid())
+        {
+            Ent:setColor(ModuleSettings["colors", array][I, vector4])
+            Ent:propNotSolid(0)
+        }
+    }
+    ModuleSettings["ents", array]:clear()
+    ModuleSettings["colors", array]:clear()
+}
+function fadingdoorUpdate(ModuleSettings:table)
+{
+    local Owner = Settings["player", table]["owner", entity]
+    local AimEnt = Owner:aimEntity()
+    if((Owner:keyPressed("lalt") | Owner:tool() == "multi_parent") & AimEnt:isValid() & AimEnt:type() != "player")
+    {
+        holoModel(1, AimEnt:model())
+        holoPos(1, AimEnt:pos())
+        holoAng(1, AimEnt:angles())
+        holoScale(1, vec(1.1))
+        holoAlpha(1, 255)
+        if(AimEnt != ModuleSettings["target", table][1, entity]) { ModuleSettings["target", table] = table(AimEnt, AimEnt:getColor4()) }
+    }else{
+        ModuleSettings["target", table] = table()
+        holoAlpha(1, 0)
+    }
+}
+function fadingdoorInput(Ply:entity, Key:string, State, ModuleSettings:table)
+{    
+    local Target = ModuleSettings["target", table][1, entity]
+    local Color = ModuleSettings["target", table][2, vector4]
+    
+    if(Ply:tool() == "multi_parent")
+    {
+        if(State)
+        {
+            if(Key == "mouse_left" &  Target:isValid())
+            {
+                Target:setColor(vec(128, 255, 255), 50)
+                Target:propNotSolid(1)
+                Target:propFreeze(1)
+                ModuleSettings["ents", array]:pushEntity(Target)
+                ModuleSettings["colors", array]:pushVector4(Color)
+            }elseif(Key == "r" | Key == "mouse_right")
+            {
+                fadingdoorReset(ModuleSettings)
+            }
+        }
+    }elseif(Ply:keyPressed("lalt") & Key == "mouse_right" & State & Target:isValid()) # Manually hide entities
+    {
+        ModuleSettings["ents", array]:pushEntity(Target)
+        ModuleSettings["colors", array]:pushVector4(Color)
+        Target:setAlpha(0)
+        Target:propNotSolid(1)
+        Target:propFreeze(1)
+    }
+}
+function table fadingdoorActivator(State, ModuleSettings:table)
+{
+    if(State)
+    {
+        holoCreate(1) # Used to visualize what prop is currently targeted.
+        holoColor(1, vec4(255, 0, 0, 0))
+        ModuleSettings["ents", array] = array() # Used for storing all entities currently hidden.
+        ModuleSettings["colors", array] = array() # Used for storing all the colors since they'll need to be restored.
+        eventSetInterval("toolbeltUpdateModules", 25) # Write a wrapper around this to allow modules to ajust the update interval! <---------
+    }else{
+        holoDelete(1)
+        fadingdoorReset(ModuleSettings)
+        eventSetInterval("toolbeltUpdateModules", 200) # Write a wrapper around this to allow modules to ajust the update interval! <---------
+    }
+    return ModuleSettings
+}
+toolbeltAddModule(array("Fading Door", "FaD"),  "fadingdoorUpdate", "fadingdoorInput", "fadingdoorActivator")

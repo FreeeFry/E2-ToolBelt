@@ -1,0 +1,277 @@
+@persist [SPROPSModels]:table
+
+#[
+#include "libraries/modellib/sprops"
+SPROPSModels = table(
+    "cuboids" = spropsGetModels("cuboids"),
+    "cylinders" = spropsGetModels("cylinders"),
+    "geometry" = spropsGetModels("geometry"),
+    "mechanics" = spropsGetModels("mechanics"),
+#    "misc" = spropsGetModels("misc"),
+    "prisms" = spropsGetModels("prisms"),
+    "rectangles" = spropsGetModels("rectangles"),
+    "rectangles_thin" = spropsGetModels("rectangles_thin"),
+    "trans" = spropsGetModels("trans"),
+    "triangles" = spropsGetModels("triangles"),
+    "triangles_thin" = spropsGetModels("triangles_thin")    
+)
+function number spropsGetIndexByModel(Model:string, Category:string)
+{
+    local LookupTab = invert(SPROPSModels[Category, table])
+    if(LookupTab:exists(Model)) { return LookupTab[Model, number] }
+    return -1
+}
+function string spropsGetModelByIndex(Index, Category:string)
+{
+    if(!SPROPSModels:exists(Category)) { return "" }
+    if(Index <= 0 | Index > SPROPSModels[Category, table]:ncount()) { return "" }
+    return SPROPSModels[Category, table][Index, string]
+    
+}#]#
+
+function string spropsGetModelSize(Offset, Current:string, Category:string) # Offset: 1=Larger, -1 Smaller
+{
+    #if(spropsGetIndexByModel(Current, Category) == -1) { return "" }
+    local PathSplit = Current:explode("/"), Path = ""
+    for(I=1, PathSplit:count())
+    {
+        if(I==PathSplit:count()) { break }
+        Path = format("%s%s/", Path, PathSplit[I, string])
+    }
+    local Filename = PathSplit[PathSplit:count(), string]
+    local Prefix = Filename:matchFirst("%D+")
+    local Suffix = ".mdl"
+    Filename = Filename:sub(Prefix:length()+1):replace(".mdl", "")
+    Size = array(Filename)
+    if(Size[1, string]:find("x")) { Size = Size[1, string]:explode("x") }
+    Length = Size[1, string]:toNumber()
+    MinLength = 6
+    Increment = 6
+    MaxLength = 96
+    
+    if(Size:count() > 1) # Model path contains width and length
+    {
+        Prefix = format("%s%sx", Prefix, Size[1, string])
+        Length = Size[2, string]:toNumber()
+        
+        MinLength = Size[1, string]:toNumber()
+        if(Size:count() == 3)
+        {
+        Suffix = format("x%s%s", Size[3, string], Suffix)
+        }
+    }else{ # Model path contains only width(props that only scale on their diameter and such)
+    }
+    
+    local ModelLimits = table(
+        "wheel" = array(5, 15, 60),
+        "hex" = array(6, 12, 96),
+        "disc" = array(6, 12, 96),
+        "ring" = array(6, 12, 96),
+        "sphere" = array(3, 3, 48),
+        "dome" = array(6, 6, 48),
+        "cone" = array(6, 6, 48),
+        "pyr" = array(6, 6, 48),
+        "sqhole" = array(12, 6, 48),
+        "ctri" = array(6, 6, 48),
+        "cube" = array(6, MinLength, 48)
+    )
+    
+    foreach(StringMatch, Limits:array=ModelLimits)
+    {
+        if(PathSplit[PathSplit:count(), string]:find(StringMatch))
+        {
+        Increment = Limits[1, number]
+        MinLength = Limits[2, number]
+        MaxLength = Limits[3, number]
+        }
+    }
+    #print(format("Filename: %s, Length: %i, MinLength: %i, MaxLength: %i", PathSplit[PathSplit:count(), string], Length, MinLength, MaxLength))
+    if(Offset == 1)
+    {
+        if(Length < MaxLength)
+        {
+        NewLength = Length+Increment
+        }else{
+        NewLength = Length
+        }
+    }elseif(Offset == -1)
+    {
+        if(Length > MinLength)
+        {
+        NewLength = Length-Increment
+        }else{
+        NewLength = Length
+        }
+    }
+    NewLength = clamp(NewLength, MinLength, MaxLength)
+    local NewMdl = format("%s%s%i%s", Path, Prefix, NewLength, Suffix)
+    #print(format("CurrentMdl: %s\n NewMdl: %s\n", Current, NewMdl))
+    return NewMdl
+}
+function spropsselectorUpdate(ModuleSettings:table)
+{
+    local Owner = Settings["player", table]["owner", entity]
+    local AimEnt = Owner:aimEntity()
+    
+    holoPos(4, Owner:shootPos())
+    holoAng(4, Owner:eyeAngles())
+    if(ModuleSettings["locked", entity]:isValid())
+    {
+        ParentLocalized = holoEntity(4):toLocal(ModuleSettings["locked", entity]:pos())
+        
+        holoPos(2, holoEntity(4):toWorld(ParentLocalized:rotate(ang(0, 20, 0))))
+        holoAng(2, ModuleSettings["locked", entity]:angles())
+        #holoAlpha(2, 255)
+        
+        holoPos(3, holoEntity(4):toWorld(ParentLocalized:rotate(ang(0, -20, 0))))
+        holoAng(3, ModuleSettings["locked", entity]:angles())
+        #holoAlpha(3, 255)
+    }
+    
+}
+function spropsselectorInput(Ply:entity, Key:string, State, ModuleSettings:table)
+{
+    local Owner = Settings["player", table]["owner", entity]
+    local AimEnt = Owner:aimEntity()
+    AimEnt = (AimEnt:type() == "prop_physics" & AimEnt:model():find("sprops") ? AimEnt : noentity()) # We only deal with sprops.
+    #print(Key, State)
+    
+    if(Key == "lalt")
+    {
+        if(State & AimEnt:isValid())
+        {
+        local Category = AimEnt:model():sub(15)
+        Category = Category:left(Category:find("/")-1)
+        AimEnt:setAlpha(0)
+        ParentLocalized = holoEntity(4):toLocal(AimEnt:pos())
+        
+        holoModel(1, AimEnt:model())
+        holoPos(1, AimEnt:pos())
+        holoAng(1, AimEnt:angles())
+        holoColor(1, vec(255, 128, 0))
+        holoAlpha(1, 255)
+        
+        holoModel(2, spropsGetModelSize(-1, AimEnt:model(), Category))
+        holoPos(2, holoEntity(4):toWorld(ParentLocalized:rotate(ang(0, 35, 0))))
+        holoAng(2, AimEnt:angles())
+        holoAlpha(2, 128)
+        
+        holoModel(3, spropsGetModelSize(1, AimEnt:model(), Category))
+        holoPos(3, holoEntity(4):toWorld(ParentLocalized:rotate(ang(0, -35, 0))))
+        holoAng(3, AimEnt:angles())
+        holoAlpha(3, 128)
+        ModuleSettings["locked", entity] = AimEnt
+        }else{
+        ModuleSettings["locked", entity]:setAlpha(255)
+        holoAlpha(1, 0)
+        holoAlpha(2, 0)
+        holoAlpha(3, 0)
+        ModuleSettings["locked", entity] = noentity()
+        }
+    }elseif(Key == "1" & State & Ply:keyPressed("lalt") & propCanCreate()) # Scale down
+    {
+        local Mdl = AimEnt:model()
+        
+        local Category = Mdl:sub(15)
+        Category = Category:left(Category:find("/")-1)
+        
+        local NewMdl = holoEntity(2):model()#spropsGetModelSize(-1, Mdl, Category)
+        if(NewMdl:lower() != Mdl:lower()) # Don't spawn if no model change lulz!
+        {
+        #print(format("Smaller mdl: % s", NewMdl))
+        local Pos = ModuleSettings["locked", entity]:pos()
+        local Ang = ModuleSettings["locked", entity]:angles()
+        
+        NewProp = propSpawn(NewMdl, Pos, Ang, 1)
+        
+        local Category = NewProp:model():sub(15)
+        Category = Category:left(Category:find("/")-1)
+        AimEnt:setAlpha(0)
+        ParentLocalized = holoEntity(4):toLocal(NewProp:pos())
+        
+        holoModel(1, NewProp:model())
+        holoPos(1, NewProp:pos())
+        holoAng(1, NewProp:angles())
+        holoColor(1, vec(255, 128, 0))
+        holoAlpha(1, 255)
+        
+        holoModel(2, spropsGetModelSize(-1, NewProp:model(), Category))
+        holoPos(2, holoEntity(4):toWorld(ParentLocalized:rotate(ang(0, 20, 0))))
+        holoAng(2, NewProp:angles())
+        holoAlpha(2, 128)
+        
+        holoModel(3, spropsGetModelSize(1, NewProp:model(), Category))
+        holoPos(3, holoEntity(4):toWorld(ParentLocalized:rotate(ang(0, -20, 0))))
+        holoAng(3, NewProp:angles())
+        holoAlpha(3, 128)
+        
+        AimEnt:propDelete()
+        ModuleSettings["locked", entity] = NewProp
+        }
+    }elseif(Key == "2" & State & Ply:keyPressed("lalt") & propCanCreate()) # Scale up
+    {
+        local Mdl = AimEnt:model()
+        
+        local Category = Mdl:sub(15)
+        Category = Category:left(Category:find("/")-1)
+        
+        local NewMdl = holoEntity(3):model()#spropsGetModelSize(1, Mdl, Category)
+        if(NewMdl:lower() != Mdl:lower()) # Don't spawn if no model change lulz!
+        {
+        #print(format("Bigger mdl: % s", NewMdl))
+        local Pos = ModuleSettings["locked", entity]:pos()
+        local Ang = ModuleSettings["locked", entity]:angles()
+        
+        NewProp = propSpawn(NewMdl, Pos, Ang, 1)
+        
+        local Category = NewProp:model():sub(15)
+        Category = Category:left(Category:find("/")-1)
+        AimEnt:setAlpha(0)
+        ParentLocalized = holoEntity(4):toLocal(NewProp:pos())
+        
+        holoModel(1, NewProp:model())
+        holoPos(1, NewProp:pos())
+        holoAng(1, NewProp:angles())
+        holoColor(1, vec(255, 128, 0))
+        holoAlpha(1, 255)
+        
+        holoModel(2, spropsGetModelSize(-1, NewProp:model(), Category))
+        holoPos(2, holoEntity(4):toWorld(ParentLocalized:rotate(ang(0, 20, 0))))
+        holoAng(2, NewProp:angles())
+        holoAlpha(2, 128)
+        
+        holoModel(3, spropsGetModelSize(1, NewProp:model(), Category))
+        holoPos(3, holoEntity(4):toWorld(ParentLocalized:rotate(ang(0, -20, 0))))
+        holoAng(3, NewProp:angles())
+        holoAlpha(3, 128)
+        
+        AimEnt:propDelete()
+        ModuleSettings["locked", entity] = NewProp
+        }
+    }
+}
+function table spropsselectorActivation(State, ModuleSettings:table)
+{
+    local Owner = Settings["player", table]["owner", entity]
+    if(State)
+    {
+        holoCreate(4) # Parent which shit is rotated around.
+        holoPos(4, Owner:shootPos())
+        holoAng(4, Owner:eyeAngles())
+        holoAlpha(4, 0)
+        for(I=1,3)
+        {
+        holoCreate(I)
+        holoAlpha(I, 0)
+        }
+        propSpawnUndo(0)
+    }else{
+        for(I=1,4)
+        {
+        holoDelete(I)
+        }
+        propSpawnUndo(1)
+    }
+    return ModuleSettings
+}
+toolbeltAddModule(array("Sprops Selector", "SpS"), "spropsselectorUpdate", "spropsselectorInput", "spropsselectorActivation")
