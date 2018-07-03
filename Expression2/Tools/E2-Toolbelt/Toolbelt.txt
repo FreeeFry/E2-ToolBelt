@@ -11,7 +11,7 @@ if(first())
     #include "libraries/holo/holo_core"
     #include "libraries/input/input_core"
     #include "libraries/sound/sound_core"
-    #include "Tools/Toolbelt/libraries/utils"
+    #include "Tools/E2-Toolbelt/libraries/utils"
     
     # Set owner/user of toolbelt here;
     # Modules should respect this by using toolbeltGetOwner() instead of owner()
@@ -41,11 +41,11 @@ if(first())
         )
     )
     # Here we include the modules we like.
-    #include "Tools/Toolbelt/modules/buildmode/buildmode"
-    #include "Tools/Toolbelt/modules/spawnit/spawnit"
-    #include "Tools/Toolbelt/modules/spropsselector/spropsselector"
-    #include "Tools/Toolbelt/modules/fadingdoor/fadingdoor"
-    #include "Tools/Toolbelt/modules/localfinder/localfinder"
+    #include "Tools/E2-Toolbelt/modules/buildmode/buildmode"
+    #include "Tools/E2-Toolbelt/modules/spawnit/spawnit"
+    #include "Tools/E2-Toolbelt/modules/spropsselector/spropsselector"
+    #include "Tools/E2-Toolbelt/modules/fadingdoor/fadingdoor"
+    #include "Tools/E2-Toolbelt/modules/localfinder/localfinder"
     # When developing modules for the toolbelt, write their code below here!
     
     
@@ -195,5 +195,5 @@ if(first())
     }
     toolbeltAddModule(array("ParentTool", "PRT"), "parentToolUpdate", "parentToolInput", "parentToolActivation")
     # Don't touch the shit below here, the toolbelt won't work if you do!
-    #include "Tools/Toolbelt/libraries/toolbelt_core"
+    #include "Tools/E2-Toolbelt/libraries/toolbelt_core"
 }, #include "libraries/event_system/event_polling"
