@@ -1,0 +1,6 @@
+#include "libraries/event_system/event_core"
+#include "Tools/E2-Toolbelt/libraries/utils"
+#include "libraries/holo/holo_core"
+#include "libraries/input/input_core"
+#include "libraries/sound/sound_core"
+#include "libraries/event_system/event_polling"

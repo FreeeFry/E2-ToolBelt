@@ -39,4 +39,4 @@ function table spawnitActivation(State, ModuleSettings:table)
     }
     return ModuleSettings
 }
-toolbeltAddModule(array("SpawnIt", "SPI"), "spawnitUpdate", "spawnitInput", "spawnitActivation")
+toolbeltAddModule(array("SpawnIt", "SI"), "spawnitUpdate", "spawnitInput", "spawnitActivation")

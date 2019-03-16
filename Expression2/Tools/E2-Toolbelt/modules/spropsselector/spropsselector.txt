@@ -274,4 +274,4 @@ function table spropsselectorActivation(State, ModuleSettings:table)
     }
     return ModuleSettings
 }
-toolbeltAddModule(array("Sprops Selector", "SpS"), "spropsselectorUpdate", "spropsselectorInput", "spropsselectorActivation")
+toolbeltAddModule(array("Sprops Selector", "SS"), "spropsselectorUpdate", "spropsselectorInput", "spropsselectorActivation")

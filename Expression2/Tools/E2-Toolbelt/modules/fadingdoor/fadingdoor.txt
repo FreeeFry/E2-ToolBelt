@@ -75,4 +75,4 @@ function table fadingdoorActivator(State, ModuleSettings:table)
     }
     return ModuleSettings
 }
-toolbeltAddModule(array("Fading Door", "FaD"),  "fadingdoorUpdate", "fadingdoorInput", "fadingdoorActivator")
+toolbeltAddModule(array("Fading Door", "FD"),  "fadingdoorUpdate", "fadingdoorInput", "fadingdoorActivator")

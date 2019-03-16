@@ -38,4 +38,4 @@ function table localfinderActivator(State, ModuleSettings:table)
     }
     return ModuleSettings
 }
-toolbeltAddModule(array("Local finder", "LoF"), "localfinderUpdate", "localfinderInput", "localfinderActivator")
+toolbeltAddModule(array("Local finder", "LF"), "localfinderUpdate", "localfinderInput", "localfinderActivator")

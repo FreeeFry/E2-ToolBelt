@@ -1,53 +1,62 @@
 # Grunt work of the toolbelt itself
+
+
+# Advertise how to use the toolbelt - by this time all modules should be "loaded".
+StrMsg = "[Toolbelt] Loaded modules:\n"
+foreach(ModuleName, ModuleData:table=Settings["toolbelt", table]["modules", table]) { StrMsg += ModuleName +"\n" }
+StrMsg += "\n[Toolbelt] Don't forget to look down..."    
+print(StrMsg)
+hint(StrMsg, 15)
+
 function setupToolbelt(ToolbeltID, Toolbelt:entity)
 {
-    # Self setup
-    local Owner = Settings["player", table]["owner", entity]
-    holoPos(ToolbeltID, Owner:toWorld(Settings["player", table]["pos", vector]))
-    holoAng(ToolbeltID, Settings["toolbelt", table]["ang", angle])
+	# Self setup
+	local Owner = Settings["player", table]["owner", entity]
+	holoPos(ToolbeltID, Owner:toWorld(Settings["player", table]["pos", vector]))
+	holoAng(ToolbeltID, Settings["toolbelt", table]["ang", angle])
 
-    Settings["toolbelt", table]["id", number] = ToolbeltID
-    Settings["toolbelt", table]["ent", entity] = Toolbelt
+	Settings["toolbelt", table]["id", number] = ToolbeltID
+	Settings["toolbelt", table]["ent", entity] = Toolbelt
 
-    inputRegisterSource("owner", Owner)
-    registerCallback("event_playerInput", "toolbeltInputHandler")
+	inputRegisterSource("owner", Owner)
+	registerCallback("event_playerInput", "toolbeltInputHandler")
 
-    # Finish registering queued module registrations.
-    local RegistrationIndex = 0, Side = 1, Rotation = 5
-    foreach(Module, ModuleData:table=Settings["toolbelt", table]["modules", table])
-    {
-        local HoloIndex = 800+RegistrationIndex*10
-        local RotFac = Rotation*Side
-        local HoloPos = vec(0, 0, -Toolbelt:boxMax():z()):rotate(ang(RotFac, 0, 0)) # Check if the math.mod output of number of register modules/2 is equal to 1 (or w/e) to determine if it shud add to left or right side!
-        local HoloAng = ang() # Same as above goes for angle i guess.
-        local DirEye = (Owner:shootPos()-Toolbelt:toWorld(HoloPos)):normalized()
-        holoSpawnerAdd(HoloIndex, table(
-    "posl" = table(Toolbelt:toLocal(Toolbelt:toWorld(HoloPos)+DirEye*2.5), Toolbelt),
-    "ang" = DirEye:toAngle(),
-    "scale" = vec(0.01, 0.3, 0.15),
-    "color" = vec(128, 128, 255),
-    "alpha" = 50,
-    "disableshading" = 1,
-    "parent" = Toolbelt
-        ))
+	# Finish registering queued module registrations.
+	local RegistrationIndex = 0, Side = 1, Rotation = 5
+	foreach(Module, ModuleData:table=Settings["toolbelt", table]["modules", table])
+	{
+		local HoloIndex = 800+RegistrationIndex*10
+		local RotFac = Rotation*Side
+		local HoloPos = vec(0, 0, -Toolbelt:boxMax():z()):rotate(ang(RotFac, 0, 0)) # Check if the math.mod output of number of register modules/2 is equal to 1 (or w/e) to determine if it shud add to left or right side!
+		local HoloAng = ang() # Same as above goes for angle i guess.
+		local DirEye = (Owner:shootPos()-Toolbelt:toWorld(HoloPos)):normalized()
+		holoSpawnerAdd(HoloIndex, table(
+	"posl" = table(Toolbelt:toLocal(Toolbelt:toWorld(HoloPos)+DirEye*2.5), Toolbelt),
+	"ang" = DirEye:toAngle(),
+	"scale" = vec(0.01, 0.3, 0.15),
+	"color" = vec(128, 128, 255),
+	"alpha" = 50,
+	"disableshading" = 1,
+	"parent" = Toolbelt
+		))
 
-        ModuleData["quedReg", number] = 0 # Finish registration ( DO THIS LAST, other parts of code rely on this variable to start processing module calls, etc. )
-        ModuleData["hologram", table] = table("id" = HoloIndex)
-        ModuleData["settings", table] = table() # Table the module can use to store persistent settings, will be passed to all module callbacks.
-        RegistrationIndex += 1
-        Side = -Side
-        if(Side==1) { Rotation += 10 }
-    }
+		ModuleData["quedReg", number] = 0 # Finish registration ( DO THIS LAST, other parts of code rely on this variable to start processing module calls, etc. )
+		ModuleData["hologram", table] = table("id" = HoloIndex)
+		ModuleData["settings", table] = table() # Table the module can use to store persistent settings, will be passed to all module callbacks.
+		RegistrationIndex += 1
+		Side = -Side
+		if(Side==1) { Rotation += 10 }
+	}
 
 }
 function holoSpawned(ID, Ent:entity, Remaining)
 {
-    switch(ID)
-    {
-        case 1000, # Toolbelt hologram
+	switch(ID)
+	{
+		case 1000, # Toolbelt hologram
 			setupToolbelt(ID, Ent) # Setup
 				break
-        default,
+		default,
 			if(inrange(ID, 800, 999)) # Module holograms.
 			{
 				if(mod(ID, 10) == 0) # Only trigger this for the actual holograms.
@@ -89,65 +98,76 @@ function holoSpawned(ID, Ent:entity, Remaining)
 			}
 		}
 			break
-    }
-    #print(ID, Ent, Remaining)
-    # Don't unregister the event itself - modules might be using it later.
+	}
+	#print(ID, Ent, Remaining)
+	# Don't unregister the event itself - modules might be using it later.
 }, registerEvent("event_holoSpawn", 50, "holoSpawned")
 
 function updateToolbelt(Callbacks:array)
 {
-    local TimeSpawned = curtime()-Settings["toolbelt", table]["spawntime", number]
-    local Owner = Settings["player", table]["owner", entity]
-    holoPos(Settings["toolbelt", table]["id", number], Settings["player", table]["owner", entity]:toWorld(Settings["player", table]["pos", vector]))
-    if(!holoSpawnerGetRemaining() & TimeSpawned > Settings["modules", table]:ncount()*1.5 & Owner:eyeAngles():pitch() < 40) # Give it time to load up, rough but messy to do properly.
-    {
-        holoAng(Settings["toolbelt", table]["id", number], ang(0, Settings["player", table]["owner", entity]:eyeAngles():yaw()-90, 90))
-    }
+	local TimeSpawned = curtime()-Settings["toolbelt", table]["spawntime", number]
+	local Owner = Settings["player", table]["owner", entity]
+	holoPos(Settings["toolbelt", table]["id", number], Owner:toWorld(Settings["player", table]["pos", vector]))
+	if(!holoSpawnerGetRemaining() & TimeSpawned > Settings["modules", table]:ncount()*1.5 & Owner:eyeAngles():pitch() < 40) # Give it time to load up, rough but messy to do properly.
+	{
+		holoAng(Settings["toolbelt", table]["id", number], ang(0, Settings["player", table]["owner", entity]:eyeAngles():yaw()-90, 90))
+	}
 }, registerEvent("updateToolbelt", 100)
 function toolbeltUpdateModules(Callbacks:array)
 {
-    # Do module aimAt detection in here or in updateToolbelt?
-    foreach(Module, ModuleData:table=Settings["toolbelt", table]["modules", table])
-    {
-        if(ModuleData["active", number] & !ModuleData["quedReg", number]) # We assume all modules will have an updateCallback ( bad? )
-        {
-			     ModuleData["onUpdate", string](ModuleData["settings", table]) # Should be pass some parameters?
-        }
-    }
+	# Do module aimAt detection in here or in updateToolbelt?
+	foreach(Module, ModuleData:table=Settings["toolbelt", table]["modules", table])
+	{
+		if(ModuleData["active", number] & !ModuleData["quedReg", number]) # We assume all modules will have an updateCallback ( bad? )
+		{
+				 ModuleData["onUpdate", string](ModuleData["settings", table]) # Should be pass some parameters?
+		}
+	}
 }, registerEvent("toolbeltUpdateModules", 200)
 
 function toolbeltInputHandler(Ply:entity, Key:string, State)
 {
-    if(Key == "e" & State & Ply:eyeAngles():pitch() > 40) # If player is aiming down at the toolbelt and presses E
-    {
-        local Owner = Settings["player", table]["owner", entity], LookingAt = 0
-        foreach(Module, ModuleData:table=Settings["toolbelt", table]["modules", table])
-        {
-    local HoloID = ModuleData["hologram", table]["id", number]
-    if(Owner:isLookingAt(holoEntity(HoloID):pos()))
-    {
-        ModuleData["active", number] = !ModuleData["active", number]
-        Settings["toolbelt", table]["activeModule", string] = (ModuleData["active", number] ? Module : "")
-        print(format("%s %s", ModuleData["name", string], (ModuleData["active", number] ? "activated" : "deactivated")))
-        if(ModuleData["active", number])
-        {
-        sndPlayEntity("moduleActivated", Settings["toolbelt", table]["ent", entity], "buttons/button14.wav", 0.25)
-        }else{
-        sndPlayEntity("moduleDeactivated", Settings["toolbelt", table]["ent", entity], "buttons/button15.wav", 0.25)
-        }
+	if(Key == "e" & State & Ply:eyeAngles():pitch() > 40) # If player is aiming down at the toolbelt and presses E
+	{
+		local Owner = Settings["player", table]["owner", entity], LookingAt = 0
+		foreach(Module, ModuleData:table=Settings["toolbelt", table]["modules", table])
+		{
+	local HoloID = ModuleData["hologram", table]["id", number]
+	if(Owner:isLookingAt(holoEntity(HoloID):pos()))
+	{
+		ModuleData["active", number] = !ModuleData["active", number]
+		Settings["toolbelt", table]["activeModule", string] = (ModuleData["active", number] ? Module : "")
+		print(format("%s %s", ModuleData["name", string], (ModuleData["active", number] ? "activated" : "deactivated")))
+		if(ModuleData["active", number])
+		{
+		sndPlayEntity("moduleActivated", Settings["toolbelt", table]["ent", entity], "buttons/button14.wav", 0.25)
+		}else{
+		sndPlayEntity("moduleDeactivated", Settings["toolbelt", table]["ent", entity], "buttons/button15.wav", 0.25)
+		}
 
-        ModuleData["settings", table] = ModuleData["onActivation", string](ModuleData["active", number], ModuleData["settings", table])[table] # Call module activator callback and store returned settings table.
-        holoAlpha(HoloID, (ModuleData["active", number] ? 255 : 50))
-    }
-        }
-        return # Don't pass use key to callbacks when its used by the toolbelt itself.
-    }
-    foreach(Module, ModuleData:table=Settings["toolbelt", table]["modules", table])
-    {
-        if(ModuleData["active", number] & !ModuleData["quedReg", number]) # Module is active and has registered for input notifications.
-        {
-            ModuleData["onInput", string](Ply, Key, State, ModuleData["settings", table])
-        }
-    }
+		ModuleData["settings", table] = ModuleData["onActivation", string](ModuleData["active", number], ModuleData["settings", table])[table] # Call module activator callback and store returned settings table.
+		holoAlpha(HoloID, (ModuleData["active", number] ? 255 : 50))
+	}
+		}
+		return # Don't pass use key to callbacks when its used by the toolbelt itself.
+	}
+	foreach(Module, ModuleData:table=Settings["toolbelt", table]["modules", table])
+	{
+		if(ModuleData["active", number] & !ModuleData["quedReg", number]) # Module is active and has registered for input notifications.
+		{
+			ModuleData["onInput", string](Ply, Key, State, ModuleData["settings", table])
+		}
+	}
 }
-#include "libraries/event_system/event_polling"
+
+holoSpawnerAdd(1000, table( # Toolbelt parent
+	"lpos" = table(vec(), entity()),
+	"model" = "models/sprops/misc/tubes_thin/size_4/t_tube_48x6.mdl",
+	"scale" = vec(1, 0.5, 1),
+	"material" = "models/wireframe",
+	#"material" = "models/debug/debugwhite",
+		#"alpha" = 128,
+		"disableshading" = 1,
+		"color" = vec(255, 128, 0)
+	)
+)
