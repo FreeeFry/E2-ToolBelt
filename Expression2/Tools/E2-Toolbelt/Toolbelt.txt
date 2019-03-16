@@ -34,7 +34,6 @@ if(first())
     #include "Tools/E2-Toolbelt/modules/fadingdoor/fadingdoor"
     ##include "Tools/E2-Toolbelt/modules/localfinder/localfinder"
     #include "Tools/E2-Toolbelt/modules/parenttool/parenttool"
-    #include "Tools/E2-Toolbelt/modules/armormod/armormodule"
     
     ### When developing modules for the toolbelt, write their code below here! 
 

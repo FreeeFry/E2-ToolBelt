@@ -113,6 +113,7 @@ function updateToolbelt(Callbacks:array)
 		holoAng(Settings["toolbelt", table]["id", number], ang(0, Settings["player", table]["owner", entity]:eyeAngles():yaw()-90, 90))
 	}
 }, registerEvent("updateToolbelt", 100)
+
 function toolbeltUpdateModules(Callbacks:array)
 {
 	# Do module aimAt detection in here or in updateToolbelt?
@@ -120,7 +121,7 @@ function toolbeltUpdateModules(Callbacks:array)
 	{
 		if(ModuleData["active", number] & !ModuleData["quedReg", number]) # We assume all modules will have an updateCallback ( bad? )
 		{
-				 ModuleData["onUpdate", string](ModuleData["settings", table]) # Should be pass some parameters?
+			ModuleData["onUpdate", string](ModuleData["settings", table]) # Should be pass some parameters?
 		}
 	}
 }, registerEvent("toolbeltUpdateModules", 200)
@@ -132,22 +133,22 @@ function toolbeltInputHandler(Ply:entity, Key:string, State)
 		local Owner = Settings["player", table]["owner", entity], LookingAt = 0
 		foreach(Module, ModuleData:table=Settings["toolbelt", table]["modules", table])
 		{
-	local HoloID = ModuleData["hologram", table]["id", number]
-	if(Owner:isLookingAt(holoEntity(HoloID):pos()))
-	{
-		ModuleData["active", number] = !ModuleData["active", number]
-		Settings["toolbelt", table]["activeModule", string] = (ModuleData["active", number] ? Module : "")
-		print(format("%s %s", ModuleData["name", string], (ModuleData["active", number] ? "activated" : "deactivated")))
-		if(ModuleData["active", number])
-		{
-		sndPlayEntity("moduleActivated", Settings["toolbelt", table]["ent", entity], "buttons/button14.wav", 0.25)
-		}else{
-		sndPlayEntity("moduleDeactivated", Settings["toolbelt", table]["ent", entity], "buttons/button15.wav", 0.25)
-		}
+			local HoloID = ModuleData["hologram", table]["id", number]
+			if(Owner:isLookingAt(holoEntity(HoloID):pos()))
+			{
+				ModuleData["active", number] = !ModuleData["active", number]
+				Settings["toolbelt", table]["activeModule", string] = (ModuleData["active", number] ? Module : "")
+				print(format("%s %s", ModuleData["name", string], (ModuleData["active", number] ? "activated" : "deactivated")))
+				if(ModuleData["active", number])
+				{
+				sndPlayEntity("moduleActivated", Settings["toolbelt", table]["ent", entity], "buttons/button14.wav", 0.25)
+				}else{
+				sndPlayEntity("moduleDeactivated", Settings["toolbelt", table]["ent", entity], "buttons/button15.wav", 0.25)
+				}
 
-		ModuleData["settings", table] = ModuleData["onActivation", string](ModuleData["active", number], ModuleData["settings", table])[table] # Call module activator callback and store returned settings table.
-		holoAlpha(HoloID, (ModuleData["active", number] ? 255 : 50))
-	}
+				ModuleData["settings", table] = ModuleData["onActivation", string](ModuleData["active", number], ModuleData["settings", table])[table] # Call module activator callback and store returned settings table.
+				holoAlpha(HoloID, (ModuleData["active", number] ? 255 : 50))
+			}
 		}
 		return # Don't pass use key to callbacks when its used by the toolbelt itself.
 	}
@@ -166,8 +167,7 @@ holoSpawnerAdd(1000, table( # Toolbelt parent
 	"scale" = vec(1, 0.5, 1),
 	"material" = "models/wireframe",
 	#"material" = "models/debug/debugwhite",
-		#"alpha" = 128,
-		"disableshading" = 1,
-		"color" = vec(255, 128, 0)
-	)
-)
+	"alpha" = (Settings["toolbelt", table]["ringdisplay", number] ? 255 : 0),
+	"disableshading" = 1,
+	"color" = vec(255, 128, 0)
+))
